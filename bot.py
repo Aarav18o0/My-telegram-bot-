@@ -90,8 +90,8 @@ try:
     cursor.execute("ALTER TABLE users ADD COLUMN last_daily TEXT DEFAULT ''")
     conn.commit()
 except:
-    pass
-    def get_user(user_id, name):
+    pass  
+def get_user(user_id, name):
     cursor.execute(
         "SELECT user_id FROM users WHERE user_id=?",
         (user_id,)
