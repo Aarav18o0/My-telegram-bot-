@@ -137,7 +137,6 @@ async def quiz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     coins = get_balance(user.id, user.first_name)
-
 async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     today = datetime.now().strftime("%Y-%m-%d")
@@ -159,6 +158,12 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         (today, user.id)
     )
     conn.commit()
+
+    await update.message.reply_text("🎉 Mubarak ho! Aapko 500 Coins mil gaye. 💰")
+    await update.message.reply_text(
+        f"💰 {user.first_name}, aapke paas **{coins} Coins** hain.",
+        parse_mode="Markdown"
+    )
 
 async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip().lower()
