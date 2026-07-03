@@ -106,7 +106,14 @@ async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Normal message bhejti hi points jodna (+5 XP)
     USER_XP[user_id] = USER_XP.get(user_id, {"xp": 0, "name": user.first_name})
     USER_XP[user_id]["xp"] += 5
-
+    # Auto reply when @Rudra0000000001 is mentioned
+    if "@rudra0000000001" in text:
+        await update.message.reply_text(
+            "🙂 Sir abhi busy hain.\n\n"
+            "📅 Aap appointment mujhse le lijiye.\n"
+            "Sir aayenge to hum aapka number lagwa denge."
+        )
+        return
     # Daily One-Time Shayari System
     if user_id not in SHAYARI_TRACKER or SHAYARI_TRACKER[user_id] != current_date:
         SHAYARI_TRACKER[user_id] = current_date
