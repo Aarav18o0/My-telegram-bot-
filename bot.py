@@ -210,7 +210,6 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("balance", balance_command))
     app.add_handler(CommandHandler("daily", daily_command))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
-   app.add_handler(MessageHandler(filters.TEXT & 
-   ~filters.COMMAND,message_filter))
+   app.add_handler(MessageHandler(filters.TEXT &~filters.COMMAND,message_filter))
 print("🔥 Bot Status: ULTIMATE COMMUNITY BOT IS RUNNING LIVE...")
 app.run_polling()                    
