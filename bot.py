@@ -1,3 +1,4 @@
+
 import logging
 import random
 from datetime import datetime
@@ -72,14 +73,100 @@ async def math_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ans = num1 + num2
     MATH_GAMES[chat_id] = {"answer": ans, "active": True}
     await update.message.reply_text(f"🔢 **Math Challenge!**\n\nBatao: `{num1} + {num2} = ?` \n\nSabse pehle reply karo!")
+conn = sqlite3.connect("bot.db", check_same_thread=False)
+cursor = conn.cursor()
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY,
+    name TEXT,
+    xp INTEGER DEFAULT 0,
+    coins INTEGER DEFAULT 100
+)
+""")
+
+conn.commit()
+try:
+    cursor.execute("ALTER TABLE users ADD COLUMN last_daily TEXT DEFAULT ''")
+    conn.commit()
+except:
+    pass
+    def get_user(user_id, name):
+    cursor.execute(
+        "SELECT user_id FROM users WHERE user_id=?",
+        (user_id,)
+    )
+    user = cursor.fetchone()
+
+    if not user:
+        cursor.execute(
+            "INSERT INTO users (user_id, name, xp, coins) VALUES (?, ?, ?, ?)",
+            (user_id, name, 0, 100)
+        )
+        conn.commit()
+
+def add_xp(user_id, name, xp):
+    get_user(user_id, name)
+    cursor.execute(
+        "UPDATE users SET xp = xp + ? WHERE user_id=?",
+        (xp, user_id)
+    )
+    conn.commit()
+
+def add_coins(user_id, name, coins):
+    get_user(user_id, name)
+    cursor.execute(
+        "UPDATE users SET coins = coins + ? WHERE user_id=?",
+        (coins, user_id)
+    )
+    conn.commit()
+
+def get_balance(user_id, name):
+    get_user(user_id, name)
+    cursor.execute(
+        "SELECT coins FROM users WHERE user_id=?",
+        (user_id,)
+    )
+    return cursor.fetchone()[0]
 async def send_random_quiz(chat_id, context: ContextTypes.DEFAULT_TYPE):
     quiz = random.choice(SCIENCE_QUIZZES)
     await context.bot.send_poll(chat_id=chat_id, question=quiz["question"], options=quiz["options"], type="quiz", correct_option_id=quiz["correct_id"], is_anonymous=False, explanation=quiz["explanation"])
 
 async def quiz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_random_quiz(update.effective_chat.id, context)
+async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    coins = get_balance(user.id, user.first_name)
 
+async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    get_user(user.id, user.first_name)
+
+    cursor.execute(
+        "SELECT last_daily FROM users WHERE user_id=?",
+        (user.id,)
+    )
+    last = cursor.fetchone()[0]
+
+    if last == today:
+        await update.message.reply_text("🎁 Aaj ka daily reward aap pehle hi claim kar chuke hain.")
+        return
+
+    cursor.execute(
+        "UPDATE users SET coins = coins + 500, last_daily=? WHERE user_id=?",
+        (today, user.id)
+    )
+    conn.commit()
+
+    await update.message.reply_text("🎉 Mubarak ho! Aapko 500 Coins mil gaye. 💰")
+    
+    await update.message.reply_text(
+        f"💰 {user.first_name}, aapke paas **{coins} Coins** hain.",
+        parse_mode="Markdown"
+    )app.add_handler(CommandHandler("balance", balance_command))
+    app.add_handler(CommandHandler("daily", daily_command))
 async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip().lower()
     chat_id = update.effective_chat.id
