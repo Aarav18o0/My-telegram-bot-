@@ -160,9 +160,6 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     conn.commit()
 
-    await update.message.reply_text("🎉 Mubarak ho! Aapko 500 Coins mil gaye. 💰")
-
-    )
 async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip().lower()
     chat_id = update.effective_chat.id
