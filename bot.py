@@ -206,10 +206,9 @@ async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text in ["hi", "hello", "hey"]:
         await update.message.reply_text(f"Hello {user.first_name}! Type /quiz to start test.")
-
-if __name__ == '__main__':
-app = 
-Application.builder().token(TOKEN).build()
+        
+if __name__=='__main__':
+app = Application.builder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("quiz", quiz_command))
 app.add_handler(CommandHandler("rank", check_rank))
