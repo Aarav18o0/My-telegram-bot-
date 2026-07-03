@@ -1,17 +1,18 @@
-
 import logging
 import random
+import sqlite3  # <-- sqlite3 मॉड्यूल को इम्पोर्ट किया गया
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
+# लॉगिंग कॉन्फ़िगरेशन
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 TOKEN = "8833501052:AAGsdb3RdB-b3NqYNr9JHH-zX5CoOeViOes"
 BAD_WORDS = ["gali1", "gali2", "abuse", "saale", "kamine", "fraud", "badword"]
 
 SHAYARI_TRACKER = {}  
-USER_XP = {}          # Database: {user_id: {"xp": 100, "name": "Name"}}
+USER_XP = {}          
 MATH_GAMES = {}       
 
 SHAYARI_BANK = [
@@ -30,7 +31,7 @@ SCIENCE_QUIZZES = [
 ]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔥 Royal Quiz Bot Active!\nCommands:\n/quiz - Science Test\n/math - Speed Calculation\n/rank - Check Level\n/leaderboard - Top Active Members List")
+    await update.message.reply_text("🔥 Royal Quiz Bot Active!\nCommands:\n/quiz - Science Test\n/math - Speed Calculation\n/rank - Check Level\n/leaderboard - Top Active Members List\n/balance - Check Coins\n/daily - Claim Daily Bonus")
 
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for member in update.message.new_chat_members:
@@ -42,28 +43,26 @@ def get_title(xp):
     elif xp < 150: return "Scholar 🧑‍🎓"
     else: return "Science King 👑"
 
-# 📊 1. Rank Command Handler
+# 📊 Rank Command Handler
 async def check_rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     data = USER_XP.get(user_id, {"xp": 0, "name": update.effective_user.first_name})
     title = get_title(data["xp"])
     await update.message.reply_text(f"📊 **Your Status**\n👤 Name: {data['name']}\n⚡ XP Points: {data['xp']}\n🏆 Rank: **{title}**", parse_mode="Markdown")
 
-# 🏆 2. Leaderboard Command Handler (Sabse Active Logon Ki List)
+# 🏆 Leaderboard Command Handler
 async def leaderboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not USER_XP:
         await update.message.reply_text("📉 Abhi kisi ke paas koi points nahi hain. Group mein message bhejkar rank badhaiye!")
         return
     
-    # Users ko unke XP points ke mutabik highest se lowest order mein sort karna
     sorted_users = sorted(USER_XP.items(), key=lambda item: item[1]["xp"], reverse=True)
-    
     leaderboard_text = "🏆 **GROUP LEADERBOARD (TOP ACTIVE MEMBERS)** 🏆\n\n"
     medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
     
-    # Top 5 active users ko list mein dikhana
     for index, (user_id, data) in enumerate(sorted_users[:5]):
-        leaderboard_text += f"{medals[index]} **{data['name']}** — {data['xp']} XP Points\n"
+        if index < len(medals):
+            leaderboard_text += f"{medals[index]} **{data['name']}** — {data['xp']} XP Points\n"
         
     await update.message.reply_text(leaderboard_text, parse_mode="Markdown")
 
@@ -73,6 +72,8 @@ async def math_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ans = num1 + num2
     MATH_GAMES[chat_id] = {"answer": ans, "active": True}
     await update.message.reply_text(f"🔢 **Math Challenge!**\n\nBatao: `{num1} + {num2} = ?` \n\nSabse pehle reply karo!")
+
+# Database SQLite Setup
 conn = sqlite3.connect("bot.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -84,88 +85,75 @@ CREATE TABLE IF NOT EXISTS users (
     coins INTEGER DEFAULT 100
 )
 """)
-
 conn.commit()
+
 try:
     cursor.execute("ALTER TABLE users ADD COLUMN last_daily TEXT DEFAULT ''")
     conn.commit()
 except:
     pass  
-def get_user(user_id, name):
-    cursor.execute(
-        "SELECT user_id FROM users WHERE user_id=?",
-        (user_id,)
-    )
-    user = cursor.fetchone()
 
+def get_user(user_id, name):
+    cursor.execute("SELECT user_id FROM users WHERE user_id=?", (user_id,))
+    user = cursor.fetchone()
     if not user:
-        cursor.execute(
-            "INSERT INTO users (user_id, name, xp, coins) VALUES (?, ?, ?, ?)",
-            (user_id, name, 0, 100)
-        )
+        cursor.execute("INSERT INTO users (user_id, name, xp, coins) VALUES (?, ?, ?, ?)", (user_id, name, 0, 100))
         conn.commit()
 
 def add_xp(user_id, name, xp):
     get_user(user_id, name)
-    cursor.execute(
-        "UPDATE users SET xp = xp + ? WHERE user_id=?",
-        (xp, user_id)
-    )
+    cursor.execute("UPDATE users SET xp = xp + ? WHERE user_id=?", (xp, user_id))
     conn.commit()
 
 def add_coins(user_id, name, coins):
     get_user(user_id, name)
-    cursor.execute(
-        "UPDATE users SET coins = coins + ? WHERE user_id=?",
-        (coins, user_id)
-    )
+    cursor.execute("UPDATE users SET coins = coins + ? WHERE user_id=?", (coins, user_id))
     conn.commit()
 
 def get_balance(user_id, name):
     get_user(user_id, name)
-    cursor.execute(
-        "SELECT coins FROM users WHERE user_id=?",
-        (user_id,)
-    )
-    return cursor.fetchone()[0]
+    cursor.execute("SELECT coins FROM users WHERE user_id=?", (user_id,))
+    res = cursor.fetchone()
+    return res[0] if res else 0
+
 async def send_random_quiz(chat_id, context: ContextTypes.DEFAULT_TYPE):
     quiz = random.choice(SCIENCE_QUIZZES)
     await context.bot.send_poll(chat_id=chat_id, question=quiz["question"], options=quiz["options"], type="quiz", correct_option_id=quiz["correct_id"], is_anonymous=False, explanation=quiz["explanation"])
 
 async def quiz_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_random_quiz(update.effective_chat.id, context)
+
 async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     coins = get_balance(user.id, user.first_name)
+    await update.message.reply_text(f"💰 {user.first_name}, aapke paas **{coins} Coins** hain.", parse_mode="Markdown")
+
 async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     today = datetime.now().strftime("%Y-%m-%d")
 
     get_user(user.id, user.first_name)
 
-    cursor.execute(
-        "SELECT last_daily FROM users WHERE user_id=?",
-        (user.id,)
-    )
-    last = cursor.fetchone()[0]
+    cursor.execute("SELECT last_daily FROM users WHERE user_id=?", (user.id,))
+    last_res = cursor.fetchone()
+    last = last_res[0] if last_res else ""
 
     if last == today:
         await update.message.reply_text("🎁 Aaj ka daily reward aap pehle hi claim kar chuke hain.")
         return
 
-    cursor.execute(
-        "UPDATE users SET coins = coins + 500, last_daily=? WHERE user_id=?",
-        (today, user.id)
-    )
+    cursor.execute("UPDATE users SET coins = coins + 500, last_daily=? WHERE user_id=?", (today, user.id))
     conn.commit()
 
+    new_coins = get_balance(user.id, user.first_name)
+
     await update.message.reply_text("🎉 Mubarak ho! Aapko 500 Coins mil gaye. 💰")
-    await update.message.reply_text(
-        f"💰 {user.first_name}, aapke paas **{coins} Coins** hain.",
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text(f"💰 {user.first_name}, aapke paas **{new_coins} Coins** hain.", parse_mode="Markdown")
 
 async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+        
     text = update.message.text.strip().lower()
     chat_id = update.effective_chat.id
     user = update.effective_user
@@ -173,33 +161,36 @@ async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_date = datetime.now().strftime("%Y-%m-%d")
     
     if any(bad_word in text for bad_word in BAD_WORDS):
-        try: await update.message.delete()
-        except: pass
+        try: 
+            await update.message.delete()
+        except: 
+            pass
         return
 
     # Math Challenge Winner Check
     if chat_id in MATH_GAMES and MATH_GAMES[chat_id]["active"]:
         try:
-            if int(text) == MATH_GAMES[chat_id]["answer"]:
+            if text.isdigit() and int(text) == MATH_GAMES[chat_id]["answer"]:
                 MATH_GAMES[chat_id]["active"] = False
                 USER_XP[user_id] = USER_XP.get(user_id, {"xp": 0, "name": user.first_name})
-                USER_XP[user_id]["xp"] += 20  # Winner ko bonus +20 XP milega
+                USER_XP[user_id]["xp"] += 20  
+                add_xp(user_id, user.first_name, 20)  
                 await update.message.reply_text(f"🏆 **WINNER!** @{user.username or user.first_name} ne sabse pehle sahi jawab diya! (+20 XP)")
                 return
-        except: pass
+        except: 
+            pass
 
-    # Normal message bhejti hi points jodna (+5 XP)
+    # Global Text XP Update
     USER_XP[user_id] = USER_XP.get(user_id, {"xp": 0, "name": user.first_name})
     USER_XP[user_id]["xp"] += 5
-    # Auto reply when @Rudra0000000001 is mentioned
+    add_xp(user_id, user.first_name, 5) 
+
     if "@rudra0000000001" in text:
         await update.message.reply_text(
-            "🙂 Sir abhi busy hain.\n\n"
-            "📅 Aap appointment mujhse le lijiye.\n"
-            "Sir aayenge to hum aapka number lagwa denge."
+            "🙂 Sir abhi busy hain.\n\n📅 Aap appointment mujhse le lijiye.\nSir aayenge to hum aapka number lagwa denge."
         )
         return
-    # Daily One-Time Shayari System
+
     if user_id not in SHAYARI_TRACKER or SHAYARI_TRACKER[user_id] != current_date:
         SHAYARI_TRACKER[user_id] = current_date
         await update.message.reply_text(f"✨ **Shayari For You {user.first_name}!** ✨\n\n{random.choice(SHAYARI_BANK)}")
@@ -207,16 +198,16 @@ async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text in ["hi", "hello", "hey"]:
         await update.message.reply_text(f"Hello {user.first_name}! Type /quiz to start test.")
         
-if __name__=='__main__':
-app = Application.builder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("quiz", quiz_command))
-app.add_handler(CommandHandler("rank", check_rank))
-app.add_handler(CommandHandler("leaderboard", leaderboard_command))
-app.add_handler(CommandHandler("math", math_command))
-app.add_handler(CommandHandler("balance", balance_command))
-app.add_handler(CommandHandler("daily", daily_command))
-app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_filter))
-    print("🔥 Bot Status: ULTIMATE COMMUNITY BOT IS RUNNING LIVE...")
-app.run_polling()
+# मुख्य रनिंग ब्लॉक
+if __name__ == '__main__':
+    app = Application.builder().token(TOKEN).build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("quiz", quiz_command))
+    app.add_handler(CommandHandler("rank", check_rank))
+    app.add_handler(CommandHandler("leaderboard", leaderboard_command))
+    app.add_handler(CommandHandler("math", math_command))
+    app.add_handler(CommandHandler("balance", balance_command))
+    app.add_handler(CommandHandler("daily", daily_command))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+   app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_filter))print("🔥 Bot Status: ULTIMATE COMMUNITY BOT IS RUNNING LIVE...")app.run_polling()                    
