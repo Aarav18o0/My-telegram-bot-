@@ -165,8 +165,7 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"💰 {user.first_name}, aapke paas **{coins} Coins** hain.",
         parse_mode="Markdown"
-    )app.add_handler(CommandHandler("balance", balance_command))
-    app.add_handler(CommandHandler("daily", daily_command))
+    )
 async def message_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip().lower()
     chat_id = update.effective_chat.id
@@ -216,6 +215,8 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("rank", check_rank))
     app.add_handler(CommandHandler("leaderboard", leaderboard_command))
     app.add_handler(CommandHandler("math", math_command))
+    app.add_handler(CommandHandler("balance", balance_command))
+app.add_handler(CommandHandler("daily", daily_command))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_filter))
     print("🔥 Bot Status: ULTIMATE COMMUNITY BOT IS RUNNING LIVE...")
